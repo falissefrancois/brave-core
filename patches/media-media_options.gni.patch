@@ -1,13 +1,21 @@
 diff --git a/media/media_options.gni b/media/media_options.gni
-index d8e20f62c19d34d036760883a02d3350aa696f1b..b50672e5e84652d896561af669cc712458cd2912 100644
+index d8e20f62c19d34d036760883a02d3350aa696f1b..5183de301334a7084291a9c92e00aabd60a4a453 100644
 --- a/media/media_options.gni
 +++ b/media/media_options.gni
-@@ -146,7 +146,7 @@ declare_args() {
+@@ -6,6 +6,7 @@ import("//build/config/chrome_build.gni")
+ import("//build/config/chromecast_build.gni")
+ import("//build/config/features.gni")
+ import("//testing/libfuzzer/fuzzer_test.gni")
++import("//brave/build/config.gni")
+ 
+ # Do not expand this list without double-checking with OWNERS, this is a list of
+ # all targets which roll up into the //media component. It controls visibility
+@@ -146,7 +147,7 @@ declare_args() {
    # Enables host verification for CDMs.
    # Windows and Mac.
    enable_cdm_host_verification =
 -      enable_library_cdms && (is_mac || is_win) && is_chrome_branded
-+      enable_library_cdms && (is_mac || is_win) && is_official_build
++      enable_library_cdms && (is_mac || is_win) && brave_enable_cdm_host_verification
  
    # Enable Storage ID which is used by CDMs. This is only available with chrome
    # branding, but may be overridden by other embedders.
