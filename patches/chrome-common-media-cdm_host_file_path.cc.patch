@@ -1,0 +1,13 @@
+diff --git a/chrome/common/media/cdm_host_file_path.cc b/chrome/common/media/cdm_host_file_path.cc
+index c6030f417db0ea1aca7f1a618a174ab6bc9cb516..c2ac2f758b17ed4de32026c728cf73356ba67357 100644
+--- a/chrome/common/media/cdm_host_file_path.cc
++++ b/chrome/common/media/cdm_host_file_path.cc
+@@ -17,7 +17,7 @@
+ #include "chrome/common/chrome_constants.h"
+ #endif
+ 
+-#if defined(GOOGLE_CHROME_BUILD)
++#if defined(GOOGLE_CHROME_BUILD) || defined(BRAVE_CHROMIUM_BUILD)
+ 
+ namespace {
+ 
