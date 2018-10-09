@@ -84,7 +84,6 @@ class BraveSyncServiceImpl : public BraveSyncService,
 private:
   void GetSettingsAndDevicesImpl(GetSettingsAndDevicesCallback callback,
                                  const std::string json);
-  void InitJsLib(const bool &setup_new_sync);
 
   // Compiler complains at
   void OnMessageFromSyncReceived() override;
