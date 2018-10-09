@@ -39,8 +39,6 @@ public:
     const int64_t &next_item_id,
     const int64_t &parent_id) = 0;
 
-  virtual base::SequencedTaskRunner *GetTaskRunner() = 0;
-
   virtual bool IsSyncConfigured() = 0;
   virtual bool IsSyncInitialized() = 0;
 };

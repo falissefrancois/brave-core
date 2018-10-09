@@ -176,20 +176,21 @@ std::unique_ptr<RecordsList> History::NativeHistoryToSyncRecords(
 
 // TODO, AB: duplicate
 std::string History::GetOrCreateObjectByLocalId(const int64_t &local_id) {
-  CHECK(sync_obj_map_);
-  const std::string s_local_id = base::Int64ToString(local_id);
-  std::string object_id = sync_obj_map_->GetObjectIdByLocalId(storage::ObjectMap::Type::History, s_local_id);
-  if (!object_id.empty()) {
-    return object_id;
-  }
+  // CHECK(sync_obj_map_);
+  // const std::string s_local_id = base::Int64ToString(local_id);
+  // std::string object_id = sync_obj_map_->GetObjectIdByLocalId(storage::ObjectMap::Type::History, s_local_id);
+  // if (!object_id.empty()) {
+  //   return object_id;
+  // }
 
-  object_id = tools::GenerateObjectId(); // TODO, AB: pack 8 bytes from s_local_id?
-  sync_obj_map_->SaveObjectId(
-        storage::ObjectMap::Type::History,
-        s_local_id,
-        object_id);
+  // object_id = tools::GenerateObjectId(); // TODO, AB: pack 8 bytes from s_local_id?
+  // sync_obj_map_->SaveObjectId(
+  //       storage::ObjectMap::Type::History,
+  //       s_local_id,
+  //       object_id);
 
-  return object_id;
+  // return object_id;
+  return "";
 }
 
 void History::SetThisDeviceId(const std::string &device_id) {
@@ -199,47 +200,47 @@ void History::SetThisDeviceId(const std::string &device_id) {
 }
 
 std::unique_ptr<jslib::SyncRecord> History::GetResolvedHistoryValue(const std::string &object_id) {
-  LOG(ERROR) << "TAGAB brave_sync::History::GetResolvedHistoryValue object_id=<"<<object_id<<">";
-  std::string local_object_id = sync_obj_map_->GetLocalIdByObjectId(storage::ObjectMap::Type::History, object_id);
-  LOG(ERROR) << "TAGAB brave_sync::History::GetResolvedHistoryValue local_object_id=<"<<local_object_id<<">";
-  if(local_object_id.empty()) {
-    return nullptr;
-  }
+//   LOG(ERROR) << "TAGAB brave_sync::History::GetResolvedHistoryValue object_id=<"<<object_id<<">";
+//   std::string local_object_id = sync_obj_map_->GetLocalIdByObjectId(storage::ObjectMap::Type::History, object_id);
+//   LOG(ERROR) << "TAGAB brave_sync::History::GetResolvedHistoryValue local_object_id=<"<<local_object_id<<">";
+//   if(local_object_id.empty()) {
+//     return nullptr;
+//   }
 
-  int64_t id = 0;
-  bool convert_result = base::StringToInt64(local_object_id, &id);
-  DCHECK(convert_result);
-  if (!convert_result) {
-    return nullptr;
-  }
+//   int64_t id = 0;
+//   bool convert_result = base::StringToInt64(local_object_id, &id);
+//   DCHECK(convert_result);
+//   if (!convert_result) {
+//     return nullptr;
+//   }
 
-  ;;;;
-  // Get histpry entry by ID
-    // src/chrome/browser/extensions/api/history/history_api.h
+//   ;;;;
+//   // Get histpry entry by ID
+//     // src/chrome/browser/extensions/api/history/history_api.h
 
-    // Need to use bool HistoryBackend::GetURLByID(URLID url_id, URLRow* url_row) {
+//     // Need to use bool HistoryBackend::GetURLByID(URLID url_id, URLRow* url_row) {
 
-  history::URLRow* url_row = nullptr;
+//   history::URLRow* url_row = nullptr;
 
-/*
+// /*
 
-similar to
-hs->QueryHistory(search_text,
-                 options,
-                 base::Bind(&HistorySearchFunction::SearchComplete,
-                            base::Unretained(this)),
-                 &task_tracker_);
+// similar to
+// hs->QueryHistory(search_text,
+//                  options,
+//                  base::Bind(&HistorySearchFunction::SearchComplete,
+//                             base::Unretained(this)),
+//                  &task_tracker_);
 
-QueryRowsByIds(const std::vector<URLID>&vec_ids, std::vector<URLRow> &rows)
-*/
+// QueryRowsByIds(const std::vector<URLID>&vec_ids, std::vector<URLRow> &rows)
+// */
 
-  //url_row = hs->QueryHistoryByIds();
+//   //url_row = hs->QueryHistoryByIds();
 
 
-  if (url_row) {
-    LOG(ERROR) << "TAGAB brave_sync::History::GetResolvedHistoryValue node not found for local_object_id=<"<<local_object_id<<">";
-    return nullptr;
-  }
+//   if (url_row) {
+//     LOG(ERROR) << "TAGAB brave_sync::History::GetResolvedHistoryValue node not found for local_object_id=<"<<local_object_id<<">";
+//     return nullptr;
+//   }
 
 
   // const bookmarks::BookmarkNode* node = bookmarks::GetBookmarkNodeByID(model_, id);
@@ -254,12 +255,12 @@ QueryRowsByIds(const std::vector<URLID>&vec_ids, std::vector<URLRow> &rows)
 
   //std::unique_ptr<base::Value> value = BookmarkToValue(node, object_id);
   auto record = std::make_unique<jslib::SyncRecord>();
-  record->action = jslib::SyncRecord::Action::CREATE;
-  record->deviceId = device_id_;
-  record->objectId = object_id;
+  // record->action = jslib::SyncRecord::Action::CREATE;
+  // record->deviceId = device_id_;
+  // record->objectId = object_id;
 
-  std::unique_ptr<jslib::Site> history_site = GetFromUrlRow(url_row);
-  record->SetHistorySite(std::move(history_site));
+  // std::unique_ptr<jslib::Site> history_site = GetFromUrlRow(url_row);
+  // record->SetHistorySite(std::move(history_site));
 
   return record;
 }

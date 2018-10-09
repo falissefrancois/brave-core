@@ -11,6 +11,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/path_service.h"
+#include "base/sequenced_task_runner.h"
 #include "base/task/post_task.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_checker.h"
@@ -20,6 +21,7 @@
 #include "brave/components/brave_sync/value_debug.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_paths.h"
+#include "content/public/browser/browser_thread.h"
 #include "third_party/leveldatabase/src/include/leveldb/db.h"
 
 namespace brave_sync {
@@ -27,7 +29,11 @@ namespace storage {
 
 static const char DB_FILE_NAME[] = "brave_sync_db";
 
-ObjectMap::ObjectMap(const base::FilePath &profile_path) {
+ObjectMap::ObjectMap(const base::FilePath &profile_path) :
+    task_runner_(base::CreateSequencedTaskRunnerWithTraits(
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+          base::TaskShutdownBehavior::SKIP_ON_SHUTDOWN})) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   LOG(ERROR) << "TAGAB brave_sync::ObjectMap::ObjectMap CTOR profile_path="<<profile_path;
 
   DETACH_FROM_SEQUENCE(sequence_checker_);
@@ -59,7 +65,7 @@ void ObjectMap::TraceAll() {
   LOG(ERROR) << "TAGAB brave_sync::ObjectMap::TraceAll:^----------------------";
 }
 
-void ObjectMap::CreateOpenDatabase() {
+bool ObjectMap::CreateOpenDatabase() {
   LOG(ERROR) << "TAGAB brave_sync::ObjectMap::CreateOpenDatabase, DCHECK_CALLED_ON_VALID_SEQUENCE " << GetThreadInfoString();
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -79,62 +85,77 @@ void ObjectMap::CreateOpenDatabase() {
       }
 
       LOG(ERROR) << "sync level db open error " << DB_FILE_NAME;
-      return;
+      return false;
     }
     level_db_.reset(level_db_raw);
     LOG(ERROR) << "TAGAB DB opened";
     TraceAll();
   }
+  return true;
 }
 
-std::string ObjectMap::GetLocalIdByObjectId(const Type &type, const std::string &objectId) {
+void ObjectMap::GetLocalIdByObjectId(const Type& type,
+                                     const std::string& object_id,
+                                     LoadValueCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  DCHECK(!object_id.empty());
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::GetLocalIdByObjectIdOnThread,
+                      base::Unretained(this), type, object_id),
+      std::move(callback));
+}
+
+std::string ObjectMap::GetLocalIdByObjectIdOnThread(const Type& type,
+                                                 const std::string& object_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!objectId.empty());
-  CreateOpenDatabase();
-  if (nullptr == level_db_) {
-      return "";
-  }
+  if (!CreateOpenDatabase())
+    return "";
 
   std::string value;
-  leveldb::Status db_status = level_db_->Get(leveldb::ReadOptions(), objectId, &value);
+  leveldb::Status db_status = level_db_->Get(leveldb::ReadOptions(), object_id, &value);
   if (!db_status.ok()) {
-    LOG(ERROR) << "TAGAB brave_sync::ObjectMap::GetLocalIdByObjectId type=<" << type << ">";
-    LOG(ERROR) << "TAGAB brave_sync::ObjectMap::GetLocalIdByObjectId objectId=<" << objectId << ">";
+    VLOG(1) << "TAGAB type=<" << type << ">";
+    VLOG(1) << "TAGAB object_id=<" << object_id << ">";
     LOG(ERROR) << "sync level db get error " << db_status.ToString();
-  }
-
-  std::string local_id;
-  Type read_type = Unset;
-  if (value.empty()) {
     return "";
   }
 
-  LOG(ERROR) << "TAGAB brave_sync::ObjectMap::GetLocalIdByObjectId value="<<value;
-  SplitRawLocalId(value, local_id, read_type);
-  LOG(ERROR) << "TAGAB brave_sync::ObjectMap::GetLocalIdByObjectId local_id="<<local_id;
-  LOG(ERROR) << "TAGAB brave_sync::ObjectMap::GetLocalIdByObjectId type="<<type;
+  std::string local_id;
+  Type read_type;
+  VLOG(1) << "TAGAB value="<<value;
+  SplitRawLocalId(value, &local_id, &read_type);
+  VLOG(1) << "TAGAB local_id="<<local_id;
+  VLOG(1) << "TAGAB type="<<type;
   DCHECK(type == read_type);
 
   return local_id;
 }
 
-std::string ObjectMap::GetObjectIdByLocalId(const Type &type, const std::string &localId) {
+void ObjectMap::GetObjectIdByLocalId(const Type& type,
+                                     const std::string& local_id,
+                                     LoadValueCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::GetObjectIdByLocalIdOnThread,
+          base::Unretained(this), type, local_id),
+      std::move(callback));
+}
+
+std::string ObjectMap::GetObjectIdByLocalIdOnThread(const Type& type,
+                                                  const std::string& local_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   std::string object_id;
-
-  bool ret = GetParsedDataByLocalId(type, localId, &object_id, nullptr, nullptr);
-
-  if (!ret) {
-    return "";
-  }
-
+  GetParsedDataByLocalId(type, local_id, &object_id, nullptr, nullptr);
   return object_id;
 }
 
 bool ObjectMap::GetParsedDataByLocalId(
   const Type &type,
-  const std::string &localId,
-  std::string *object_id, std::string *order, std::string *api_version) {
-  std::string raw_local_id = ComposeRawLocalId(type, localId);
+  const std::string &local_id,
+  std::string *object_id,
+  std::string *order,
+  std::string *api_version) {
+  std::string raw_local_id = ComposeRawLocalId(type, local_id);
   LOG(ERROR) << "TAGAB ObjectMap::GetParsedDataByLocalId: raw_local_id=<" << raw_local_id << ">";
   std::string json = GetRawJsonByLocalId(raw_local_id);
 
@@ -177,9 +198,9 @@ bool ObjectMap::GetParsedDataByLocalId(
 
   const auto &val_entry = val->GetList().at(0);
 
-  //std::string json = "[{\"objectId\": \"" + objectId + "\", \"order\": \"" + order + "\", \"apiVersion\": \"" + api_version_ + "\"}]";
+  //std::string json = "[{\"object_id\": \"" + object_id + "\", \"order\": \"" + order + "\", \"apiVersion\": \"" + api_version_ + "\"}]";
   if (object_id) {
-    *object_id = val_entry.FindKey("objectId")->GetString();
+    *object_id = val_entry.FindKey("object_id")->GetString();
   }
   if (order) {
     *order = val_entry.FindKey("order")->GetString();
@@ -192,53 +213,75 @@ bool ObjectMap::GetParsedDataByLocalId(
 }
 
 void ObjectMap::UpdateOrderByLocalObjectId(
-  const Type &type,
-  const std::string &localId,
-  const std::string &new_order) {
-  LOG(ERROR) << "TAGAB ObjectMap::UpdateOrderByLocalObjectId";
-  LOG(ERROR) << "TAGAB localId="<<localId;
-  LOG(ERROR) << "TAGAB new_order="<<new_order;
+    const Type& type,
+    const std::string& local_id,
+    const std::string& new_order,
+    SaveValueCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  VLOG(1) << "TAGAB ObjectMap::UpdateOrderByLocalObjectId";
+  VLOG(1) << "TAGAB local_id=" << local_id;
+  VLOG(1) << "TAGAB new_order=" << new_order;
+
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::UpdateOrderByLocalObjectIdOnThread,
+                     base::Unretained(this), type, local_id, new_order),
+      std::move(callback));
+}
+
+bool ObjectMap::UpdateOrderByLocalObjectIdOnThread(
+    const Type& type,
+    const std::string& local_id,
+    const std::string& new_order) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   std::string object_id;
   std::string old_order;
   bool ret = GetParsedDataByLocalId(
     type,
-    localId,
-    &object_id, &old_order, nullptr);
-  DCHECK(ret);
-  LOG(ERROR) << "TAGAB object_id="<<object_id;
-  LOG(ERROR) << "TAGAB old_order="<<old_order;
-  if (object_id.empty()) {
-    return;
-  }
+    local_id,
+    &object_id,
+    &old_order,
+    nullptr);
 
-  SaveObjectIdAndOrder(type, localId, object_id, new_order);
+  if (!ret || object_id.empty())
+    return false;
+
+  VLOG(1) << "TAGAB object_id=" << object_id;
+  VLOG(1) << "TAGAB old_order=" << old_order;
+
+  return SaveObjectIdAndOrderInternal(type, local_id, object_id, new_order);
 }
 
+// TODO - this seems identical to SaveObjectIdAndOrder
 void ObjectMap::CreateOrderByLocalObjectId(
-  const Type &type,
-  const std::string &localId,
-  const std::string &objectId,
-  const std::string &order) {
-  LOG(ERROR) << "TAGAB ObjectMap::CreateOrderByLocalObjectId";
-  LOG(ERROR) << "TAGAB localId="<<localId;
-  LOG(ERROR) << "TAGAB objectId="<<objectId;
-  LOG(ERROR) << "TAGAB order="<<order;
-  DCHECK(!localId.empty());
-  DCHECK(!objectId.empty());
+    const Type& type,
+    const std::string& local_id,
+    const std::string& object_id,
+    const std::string& order,
+    SaveValueCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  DCHECK(!local_id.empty());
+  DCHECK(!object_id.empty());
   DCHECK(!order.empty());
 
-  SaveObjectIdAndOrder(type, localId, objectId, order);
+  VLOG(1) << "TAGAB ObjectMap::CreateOrderByLocalObjectId";
+  VLOG(1) << "TAGAB local_id="<<local_id;
+  VLOG(1) << "TAGAB object_id="<<object_id;
+  VLOG(1) << "TAGAB order="<<order;
+
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::SaveObjectIdAndOrderOnThread,
+          base::Unretained(this), type, local_id, object_id, order),
+      std::move(callback));
 }
 
-std::string ObjectMap::GetRawJsonByLocalId(const std::string &localId) {
+std::string ObjectMap::GetRawJsonByLocalId(const std::string &local_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  CreateOpenDatabase();
-  if (nullptr == level_db_) {
-      return "";
-  }
+  if (!CreateOpenDatabase())
+    return "";
 
   std::string json_value;
-  leveldb::Status db_status = level_db_->Get(leveldb::ReadOptions(), localId, &json_value);
+  leveldb::Status db_status = level_db_->Get(leveldb::ReadOptions(), local_id, &json_value);
 
   if (!db_status.ok()) {
     LOG(ERROR) << "sync level db get error " << db_status.ToString();
@@ -247,127 +290,232 @@ std::string ObjectMap::GetRawJsonByLocalId(const std::string &localId) {
   return json_value;
 }
 
-void ObjectMap::SaveObjectIdRawJson(
-  const std::string &raw_local_id,
-  const std::string &objectIdJSON,
-  const std::string &objectId) {
+bool ObjectMap::SaveObjectIdRawJson(
+    const std::string& raw_local_id,
+    const std::string& object_id_JSON,
+    const std::string& object_id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  LOG(ERROR) << "TAGAB brave_sync::ObjectMap::SaveObjectIdRawJson - enter";
-  LOG(ERROR) << "TAGAB brave_sync::ObjectMap::SaveObjectIdRawJson raw_local_id="<<raw_local_id;
-  LOG(ERROR) << "TAGAB brave_sync::ObjectMap::SaveObjectIdRawJson objectIdJSON="<<objectIdJSON;
-  LOG(ERROR) << "TAGAB brave_sync::ObjectMap::SaveObjectIdRawJson objectId="<<objectId;
+  VLOG(1) << "TAGAB brave_sync::ObjectMap::SaveObjectIdRawJson - enter";
+  VLOG(1) << "TAGAB brave_sync::ObjectMap::SaveObjectIdRawJson raw_local_id="<<raw_local_id;
+  VLOG(1) << "TAGAB brave_sync::ObjectMap::SaveObjectIdRawJson object_id_JSON="<<object_id_JSON;
+  VLOG(1) << "TAGAB brave_sync::ObjectMap::SaveObjectIdRawJson object_id="<<object_id;
 
-  CreateOpenDatabase();
-  if (nullptr == level_db_) {
-    LOG(ERROR) << "TAGAB brave_sync::ObjectMap::SaveObjectIdRawJson nullptr == level_db_ ???";
-    return;
-  }
+  if (!CreateOpenDatabase())
+    return false;
 
-  leveldb::Status db_status = level_db_->Put(leveldb::WriteOptions(), raw_local_id, objectIdJSON);
+  leveldb::Status db_status = level_db_->Put(leveldb::WriteOptions(), raw_local_id, object_id_JSON);
   if (!db_status.ok()) {
     LOG(ERROR) << "sync level db put error " << db_status.ToString();
+    return false;
   }
 
-  if (0 != objectId.size()) {
-      db_status = level_db_->Put(leveldb::WriteOptions(), objectId, raw_local_id);
-      if (!db_status.ok()) {
-        LOG(ERROR) << "sync level db put error " << db_status.ToString();
-      }
+  db_status = level_db_->Put(leveldb::WriteOptions(), object_id, raw_local_id);
+  if (!db_status.ok()) {
+    LOG(ERROR) << "sync level db put error " << db_status.ToString();
+    return false;
   }
-  LOG(ERROR) << "TAGAB brave_sync::ObjectMap::SaveObjectIdRawJson - DONE";
+
+  return true;
 }
 
-std::string ObjectMap::GetSpecialJSONByLocalId(const std::string &localId) {
-  std::string json = GetRawJsonByLocalId(localId);
-  return json;
+void ObjectMap::GetSpecialJSONByLocalId(const std::string &local_id,
+                                        LoadValueCallback callback) {
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::GetRawJsonByLocalId,
+          base::Unretained(this), local_id),
+      std::move(callback));
 }
 
-std::string ObjectMap::GetOrderByObjectId(const Type &type, const std::string &object_id) {
-  std::string local_id = GetLocalIdByObjectId(type, object_id);
+void ObjectMap::GetOrderByObjectId(const Type& type,
+                                   const std::string& object_id,
+                                   LoadValueCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::GetOrderByObjectIdOnThread,
+          base::Unretained(this), type, object_id),
+      std::move(callback));
+}
+
+void ObjectMap::GetOrderByLocalObjectIds(
+    const Type& type,
+    const std::vector<const std::string>& local_ids,
+    LoadValuesCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::GetOrderByLocalObjectIdsOnThread,
+          base::Unretained(this), type, local_ids),
+      std::move(callback));
+}
+
+const std::vector<const std::string>
+ObjectMap::GetOrderByLocalObjectIdsOnThread(
+    const Type& type,
+    const std::vector<const std::string>& local_ids) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  std::vector<const std::string> orders;
+  for (const auto &local_id : local_ids) {
+    orders.push_back(GetOrderByLocalObjectIdOnThread(type, local_id));
+  }
+
+  return orders;
+}
+
+std::string ObjectMap::GetOrderByObjectIdOnThread(const Type& type,
+                                                  const std::string& object_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  std::string local_id = GetLocalIdByObjectIdOnThread(type, object_id);
   std::string order;
   std::string object_id_saved;
-  bool ret = GetParsedDataByLocalId(type, local_id, &object_id_saved, &order, nullptr);
-
-  if (!ret) {
-    return "";
-  }
+  GetParsedDataByLocalId(type, local_id, &object_id_saved, &order, nullptr);
 
   DCHECK(object_id_saved == object_id);
-
   return order;
 }
 
-std::string ObjectMap::GetOrderByLocalObjectId(const Type &type, const std::string &localId) {
-  LOG(ERROR) << "TAGAB ObjectMap::GetOrderByLocalObjectId " << localId;
+void ObjectMap::GetOrderByLocalObjectId(
+    const Type& type,
+    const std::string& local_id,
+    LoadValueCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::GetOrderByLocalObjectIdOnThread,
+          base::Unretained(this), type, local_id),
+      std::move(callback));
+}
+
+std::string ObjectMap::GetOrderByLocalObjectIdOnThread(
+    const Type& type,
+    const std::string& local_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   std::string order;
   std::string object_id_saved;
-  bool ret = GetParsedDataByLocalId(type, localId, &object_id_saved, &order, nullptr);
-
-  if (!ret) {
-    return "";
-  }
-
+  GetParsedDataByLocalId(type, local_id, &object_id_saved, &order, nullptr);
   return order;
 }
 
-void ObjectMap::SaveObjectId(
-  const Type &type,
-  const std::string &localId,
-  const std::string &objectId) {
-  DCHECK(!api_version_.empty()); // Not sure how to manage this. For now this is just a passthorugh from "OnGetInitData"
-                                 // Android:  private String mApiVersion = "0"; just hardcoded
 
-  std::string json = "[{\"objectId\": \"" + objectId + "\", apiVersion\": \"" + api_version_ + "\"}]";
-  SaveObjectIdRawJson(ComposeRawLocalId(type, localId), json, objectId);
+void ObjectMap::SaveObjectId(
+    const Type& type,
+    const std::string& local_id,
+    const std::string& object_id,
+    SaveValueCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::SaveObjectIdOnThread, base::Unretained(this),
+          type, local_id, object_id),
+      std::move(callback));
+}
+
+bool ObjectMap::SaveObjectIdOnThread(
+    const Type& type,
+    const std::string& local_id,
+    const std::string& object_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  std::string json = "[{\"object_id\": \"" + object_id + "\", apiVersion\": \"" + api_version_ + "\"}]";
+  return SaveObjectIdRawJson(ComposeRawLocalId(type, local_id), json, object_id);
 }
 
 void ObjectMap::SaveObjectIdAndOrder(
-  const Type &type,
-  const std::string &localId,
-  const std::string &objectId,
-  const std::string &order) {
+    const Type& type,
+    const std::string& local_id,
+    const std::string& object_id,
+    const std::string& order,
+    SaveValueCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::SaveObjectIdAndOrderOnThread,
+          base::Unretained(this), type, local_id, object_id, order),
+      std::move(callback));
+}
+
+bool ObjectMap::SaveObjectIdAndOrderOnThread(
+    const Type& type,
+    const std::string& local_id,
+    const std::string& object_id,
+    const std::string& order) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return SaveObjectIdAndOrderInternal(type, local_id, object_id, order);
+}
+
+bool ObjectMap::SaveObjectIdAndOrderInternal(
+    const Type& type,
+    const std::string& local_id,
+    const std::string& object_id,
+    const std::string& order) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!api_version_.empty());
-  std::string json = "[{\"objectId\": \"" + objectId + "\", \"order\": \"" + order + "\", \"apiVersion\": \"" + api_version_ + "\"}]";
-  SaveObjectIdRawJson(ComposeRawLocalId(type, localId), json, objectId);
+  // TODO - this isn't safe because it doesn't escape values
+  std::string json = "[{\"object_id\": \"" + object_id + "\", \"order\": \"" + order + "\", \"apiVersion\": \"" + api_version_ + "\"}]";
+  return SaveObjectIdRawJson(ComposeRawLocalId(type, local_id), json, object_id);
 }
 
 void ObjectMap::SaveSpecialJson(
-  const std::string &localId,
-  const std::string &specialJSON) {
-  SaveObjectIdRawJson(localId, specialJSON, "");
+    const std::string& local_id,
+    const std::string& special_JSON,
+    SaveValueCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::SaveObjectIdRawJson,
+          base::Unretained(this), local_id, special_JSON, ""),
+      std::move(callback));
 }
 
-void ObjectMap::DeleteByLocalId(const Type &type, const std::string &localId) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  CreateOpenDatabase();
-  if (nullptr == level_db_) {
-      return;
-  }
+void ObjectMap::DeleteByLocalId(const Type& type,
+                                const std::string& local_id,
+                                DeleteValueCallback callback) {
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::DeleteByLocalIdOnThread,
+          base::Unretained(this), type, local_id),
+      std::move(callback));
+}
 
-  std::string raw_local_id = ComposeRawLocalId(type, localId);
+bool ObjectMap::DeleteByLocalIdOnThread(const Type& type,
+                                        const std::string& local_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (!CreateOpenDatabase())
+    return false;
+
+  std::string raw_local_id = ComposeRawLocalId(type, local_id);
   LOG(ERROR) << "TAGAB ObjectMap::DeleteByLocalId raw_local_id=" << raw_local_id;
 
   std::string object_id;
-  bool got_parsed = GetParsedDataByLocalId(type, localId, &object_id, nullptr, nullptr);
+  bool got_parsed = GetParsedDataByLocalId(type, local_id, &object_id, nullptr, nullptr);
   LOG(ERROR) << "TAGAB ObjectMap::DeleteByLocalId object_id=" << object_id;
 
   leveldb::Status db_status = level_db_->Delete(leveldb::WriteOptions(), raw_local_id);
   if (!db_status.ok()) {
     LOG(ERROR) << "sync level db delete error " << db_status.ToString();
+    return false;
   }
   if (got_parsed && !object_id.empty()) {
     db_status = level_db_->Delete(leveldb::WriteOptions(), object_id);
     if (!db_status.ok()) {
       LOG(ERROR) << "sync level db delete error " << db_status.ToString();
+      return false;
     }
   }
+  return true;
 }
 
-std::set<std::string> ObjectMap::SaveGetDeleteNotSyncedRecords(
-  const Type &type,
-  const std::string &action,
-  const std::vector<std::string> &local_ids,
-  const NotSyncedRecordsOperation &operation) {
+void ObjectMap::SaveGetDeleteNotSyncedRecords(
+    const Type& type,
+    const std::string& action,
+    const std::set<const std::string>& local_ids,
+    const NotSyncedRecordsOperation& operation,
+    SaveValuesCallback callback) {
+  base::PostTaskAndReplyWithResult(task_runner_.get(), FROM_HERE,
+      base::BindOnce(&ObjectMap::SaveGetDeleteNotSyncedRecordsOnThread,
+          base::Unretained(this), type, action, local_ids, operation),
+      std::move(callback));
+}
+
+const std::set<const std::string>
+ObjectMap::SaveGetDeleteNotSyncedRecordsOnThread(
+    const Type& type,
+    const std::string& action,
+    const std::set<const std::string>& local_ids,
+    const NotSyncedRecordsOperation& operation) {
   // recordType: "BOOKMARKS" | "HISTORY_SITES" | "PREFERENCES"
   // action: "0" | "1" | "2"
   std::string recordType;
@@ -392,7 +540,7 @@ std::set<std::string> ObjectMap::SaveGetDeleteNotSyncedRecords(
   }
 
   std::string key = recordType + action;
-  std::set<std::string> existing_list = GetNotSyncedRecords(key);
+  std::set<const std::string> existing_list = GetNotSyncedRecords(key);
   LOG(ERROR) << "TAGAB: existing_list=";
   for (const auto &id : existing_list) {
     LOG(ERROR) << "TAGAB:     id="<<id;
@@ -412,38 +560,44 @@ std::set<std::string> ObjectMap::SaveGetDeleteNotSyncedRecords(
       if (!list_changed) {
         list_changed = (items_removed != 0);
       }
-      // Delete corresponding objectIds
+      // Delete corresponding object_ids
       if (clear_local_db && (items_removed != 0)) {
-        DeleteByLocalId(type, id);
+        // TODO - error handling
+        DeleteByLocalIdOnThread(type, id);
       }
     }
   } else {
     NOTREACHED();
   }
 
-  SaveNotSyncedRecords(key, existing_list);
+  if (SaveNotSyncedRecords(key, existing_list))
+    return existing_list;
 
-  return std::set<std::string>();
+  return std::set<const std::string>();
 }
 
-std::set<std::string> ObjectMap::GetNotSyncedRecords(const std::string &key) {
+std::set<const std::string> ObjectMap::GetNotSyncedRecords(const std::string &key) {
+  // TODO - handle thread callback
   std::string raw = GetRawJsonByLocalId(key);
   LOG(ERROR) << "TAGAB ObjectMap::GetNotSyncedRecords: key="<<key;
   LOG(ERROR) << "TAGAB ObjectMap::GetNotSyncedRecords: raw="<<raw;
-  std::set<std::string> list = DeserializeList(raw);
+  std::set<const std::string> list = DeserializeList(raw);
   LOG(ERROR) << "TAGAB ObjectMap::GetNotSyncedRecords: list.size()="<<list.size();
   return list;
 }
 
-void ObjectMap::SaveNotSyncedRecords(const std::string &key, const std::set<std::string> &existing_list) {
+bool ObjectMap::SaveNotSyncedRecords(
+    const std::string &key,
+    const std::set<const std::string>& existing_list) {
+  // TODO - handle thread callback
   LOG(ERROR) << "TAGAB ObjectMap::SaveNotSyncedRecords: key="<<key;
   LOG(ERROR) << "TAGAB ObjectMap::SaveNotSyncedRecords: existing_list.size()="<<existing_list.size();
   std::string raw = SerializeList(existing_list);
   LOG(ERROR) << "TAGAB ObjectMap::SaveNotSyncedRecords: raw="<<raw;
-  SaveObjectIdRawJson(key, raw, std::string());
+  return SaveObjectIdRawJson(key, raw, "");
 }
 
-std::set<std::string> ObjectMap::DeserializeList(const std::string &raw) {
+std::set<const std::string> ObjectMap::DeserializeList(const std::string &raw) {
   // Parse JSON
   int error_code_out = 0;
   std::string error_msg_out;
@@ -461,10 +615,10 @@ std::set<std::string> ObjectMap::DeserializeList(const std::string &raw) {
   LOG(ERROR) << "TAGAB ObjectMap::DeserializeList: error_msg_out="<<error_msg_out;
 
   if (!list) {
-    return std::set<std::string>();
+    return std::set<const std::string>();
   }
 
-  std::set<std::string> ret;
+  std::set<const std::string> ret;
   DCHECK(list->is_list());
 
   for (const auto &val : list->GetList() ) {
@@ -474,7 +628,7 @@ std::set<std::string> ObjectMap::DeserializeList(const std::string &raw) {
   return ret;
 }
 
-std::string ObjectMap::SerializeList(const std::set<std::string> &existing_list) {
+std::string ObjectMap::SerializeList(const std::set<const std::string> &existing_list) {
   LOG(ERROR) << "TAGAB ObjectMap::SerializeList: existing_list.size()="<<existing_list.size();
   using base::Value;
   auto list = std::make_unique<Value>(Value::Type::LIST);
@@ -495,9 +649,7 @@ std::string ObjectMap::SerializeList(const std::set<std::string> &existing_list)
 }
 
 void ObjectMap::Close() {
-  LOG(ERROR) << "TAGAB brave_sync::ObjectMap::Close, DCHECK_CALLED_ON_VALID_SEQUENCE " << GetThreadInfoString();
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  level_db_.reset();
+  task_runner_->DeleteSoon(FROM_HERE, level_db_.release());
 }
 
 void ObjectMap::CloseDBHandle() {
@@ -506,7 +658,14 @@ void ObjectMap::CloseDBHandle() {
   level_db_.reset();
 }
 
-void ObjectMap::DestroyDB() {
+void ObjectMap::DestroyDB(DestroyDBCallback callback) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  task_runner_->PostTaskAndReply(FROM_HERE,
+      base::BindOnce(&ObjectMap::DestroyDBOnThread, base::Unretained(this)),
+      std::move(callback));
+}
+
+void ObjectMap::DestroyDBOnThread() {
   LOG(ERROR) << "TAGAB brave_sync::ObjectMap::DestroyDB, DCHECK_CALLED_ON_VALID_SEQUENCE " << GetThreadInfoString();
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!profile_path_.empty());
@@ -526,47 +685,50 @@ void ObjectMap::DestroyDB() {
 
 void ObjectMap::ResetSync(const std::string& key) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  CreateOpenDatabase();
-  if (nullptr == level_db_) {
-      return;
+  if (!CreateOpenDatabase()) {
+    // TODO - need better error handling here
+    return;
   }
   level_db_->Delete(leveldb::WriteOptions(), key);
 }
 
-void ObjectMap::SplitRawLocalId(const std::string &raw_local_id, std::string &local_id, Type &read_type) {
+void ObjectMap::SplitRawLocalId(const std::string& raw_local_id,
+                                std::string* local_id,
+                                Type* read_type) {
+  // is this actually possible? Status should be IsNotFound if there is no value
   if (raw_local_id.empty()) {
-    local_id = "";
-    read_type = Unset;
+    *local_id = "";
+    *read_type = Unset;
     return;
   }
 
   char object_type_char = raw_local_id.at(0);
   switch (object_type_char) {
     case 'b':
-      read_type = Bookmark;
-      local_id.assign(raw_local_id.begin() + 1, raw_local_id.end());
+      *read_type = Bookmark;
+      local_id->assign(raw_local_id.begin() + 1, raw_local_id.end());
     break;
     case 'h':
-      read_type = History;
-      local_id.assign(raw_local_id.begin() + 1, raw_local_id.end());
+      *read_type = History;
+      local_id->assign(raw_local_id.begin() + 1, raw_local_id.end());
     break;
     default:
-      read_type = Unset;
-      local_id.assign(raw_local_id);
+      *read_type = Unset;
+      *local_id = raw_local_id;
     break;
   }
 }
 
-std::string ObjectMap::ComposeRawLocalId(const ObjectMap::Type &type, const std::string &localId) {
+std::string ObjectMap::ComposeRawLocalId(const ObjectMap::Type &type, const std::string &local_id) {
   switch (type) {
     case Unset:
-      return localId;
+      return local_id;
     break;
     case Bookmark:
-      return 'b' + localId;
+      return 'b' + local_id;
     break;
     case History:
-      return 'h' + localId;
+      return 'h' + local_id;
     break;
     default:
       NOTREACHED();
