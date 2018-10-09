@@ -207,150 +207,150 @@ void Bookmarks::AddBookmark(const jslib::SyncRecord& sync_record) {
   VLOG(1) << "TAGAB brave_sync::Bookmarks::AddBookmark order="<<sync_bookmark.order;
   VLOG(1) << "TAGAB brave_sync::Bookmarks::AddBookmark parentFolderObjectId="<<sync_bookmark.parentFolderObjectId;
 
-  std::string s_parent_local_object_id;
-  if (!sync_bookmark.parentFolderObjectId.empty()) {
-    sync_obj_map_->GetLocalIdByObjectId(
-        storage::ObjectMap::Type::Bookmark,
-        sync_bookmark.parentFolderObjectId,
-        base::BindOnce(&Bookmarks::AddBookmarkInternal, base::Unretained(this),
-            jslib::SyncRecord::Clone(sync_record)));
-  } else {
+  // std::string s_parent_local_object_id;
+  // if (!sync_bookmark.parentFolderObjectId.empty()) {
+  //   sync_obj_map_->GetLocalIdByObjectId(
+  //       storage::ObjectMap::Type::Bookmark,
+  //       sync_bookmark.parentFolderObjectId,
+  //       base::BindOnce(&Bookmarks::AddBookmarkInternal, base::Unretained(this),
+  //           jslib::SyncRecord::Clone(sync_record)));
+  // } else {
     AddBookmarkInternal(jslib::SyncRecord::Clone(sync_record), "");
-  }
+  // }
 }
 
 void Bookmarks::AddBookmarkInternal(
-    std::unique_ptr<jslib::SyncRecord> sync_record
+    std::unique_ptr<jslib::SyncRecord> sync_record,
     const std::string& s_parent_local_object_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   model_->BeginExtensiveChanges();
 
-  int64_t parent_folder_id = -1;
-  int64_t added_node_id = -1;
+  // int64_t parent_folder_id = -1;
+  // int64_t added_node_id = -1;
 
-  AddBookmarkUiWork(sync_record.get(), s_parent_local_object_id,
-                    &parent_folder_id, &added_node_id);
-  AddOrUpdateBookmarkPostUiFileWork(parent_folder_id, added_node_id,
-                                    sync_record.GetBookmark().order,
-                                    sync_record.objectId);
+  // AddBookmarkUiWork(sync_record.get(), s_parent_local_object_id,
+  //                   &parent_folder_id, &added_node_id);
+  // AddOrUpdateBookmarkPostUiFileWork(parent_folder_id, added_node_id,
+  //                                   sync_record.GetBookmark().order,
+  //                                   sync_record.objectId);
 }
 
-void Bookmarks::AddBookmarkUiWork(
-    jslib::SyncRecord* sync_record,
-    const std::string& s_parent_local_object_id,
-    int64_t* parent_folder_id,
-    int64_t* added_node_id) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  DCHECK(client_);
+// void Bookmarks::AddBookmarkUiWork(
+//     jslib::SyncRecord* sync_record,
+//     const std::string& s_parent_local_object_id,
+//     int64_t* parent_folder_id,
+//     int64_t* added_node_id) {
+//   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+//   DCHECK(client_);
 
-  const jslib::Bookmark &sync_bookmark = sync_record->GetBookmark();
-  LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork objectId="<<sync_record->objectId;
-  LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork location="<<sync_bookmark.site.location;
-  LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork title="<<sync_bookmark.site.title;
-  LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork order="<<sync_bookmark.order;
-  LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork s_parent_local_object_id="<<s_parent_local_object_id;
+//   const jslib::Bookmark &sync_bookmark = sync_record->GetBookmark();
+//   LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork objectId="<<sync_record->objectId;
+//   LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork location="<<sync_bookmark.site.location;
+//   LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork title="<<sync_bookmark.site.title;
+//   LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork order="<<sync_bookmark.order;
+//   LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork s_parent_local_object_id="<<s_parent_local_object_id;
 
-  int64_t parent_local_object_id = -1;
-  const bookmarks::BookmarkNode* parent_node = nullptr;
-  if (!s_parent_local_object_id.empty() && base::StringToInt64(s_parent_local_object_id, &parent_local_object_id) && parent_local_object_id != -1) {
-    LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork parent_local_object_id=" << parent_local_object_id;
-    parent_node = bookmarks::GetBookmarkNodeByID(model_, parent_local_object_id);
-  } else {
-    LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork StringToInt64 failed for <s_parent_local_object_id" << s_parent_local_object_id << ">";
-  }
+//   int64_t parent_local_object_id = -1;
+//   const bookmarks::BookmarkNode* parent_node = nullptr;
+//   if (!s_parent_local_object_id.empty() && base::StringToInt64(s_parent_local_object_id, &parent_local_object_id) && parent_local_object_id != -1) {
+//     LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork parent_local_object_id=" << parent_local_object_id;
+//     parent_node = bookmarks::GetBookmarkNodeByID(model_, parent_local_object_id);
+//   } else {
+//     LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork StringToInt64 failed for <s_parent_local_object_id" << s_parent_local_object_id << ">";
+//   }
 
-  LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork (GetBookmarkNodeByID) parent_node="<<parent_node;
-  if (!parent_node) {
-    //parent_node = bookmarks::GetParentForNewNodes(model_);
-    //LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork (GetParentForNewNodes) parent_node="<<parent_node;
+//   LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork (GetBookmarkNodeByID) parent_node="<<parent_node;
+//   if (!parent_node) {
+//     //parent_node = bookmarks::GetParentForNewNodes(model_);
+//     //LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork (GetParentForNewNodes) parent_node="<<parent_node;
 
-    // Here are 3 options why we cannot find parent
-    // 1) Parent is one of permanent nodes 'bookmark bar', 'other' or 'mobile',
-    //    we do not send it on sync because we cannot create it
-    // 2) Parent is 'root' node - something is wrong
-    // 3) Parent is not a permanent node but was not yet synced
+//     // Here are 3 options why we cannot find parent
+//     // 1) Parent is one of permanent nodes 'bookmark bar', 'other' or 'mobile',
+//     //    we do not send it on sync because we cannot create it
+//     // 2) Parent is 'root' node - something is wrong
+//     // 3) Parent is not a permanent node but was not yet synced
 
-    if (!sync_record->GetBookmark().hideInToolbar) {
-      parent_node = model_->bookmark_bar_node();
-      LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork use bookmark_bar_node";
-    } else if (!sync_record->GetBookmark().order.empty() && sync_record->GetBookmark().order.at(0) == '2') {
-      parent_node = model_->mobile_node();
-      LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork use mobile_node";
-    } else {
-      parent_node = model_->other_node();
-      LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork use other";
-    }
-  }
+//     if (!sync_record->GetBookmark().hideInToolbar) {
+//       parent_node = model_->bookmark_bar_node();
+//       LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork use bookmark_bar_node";
+//     } else if (!sync_record->GetBookmark().order.empty() && sync_record->GetBookmark().order.at(0) == '2') {
+//       parent_node = model_->mobile_node();
+//       LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork use mobile_node";
+//     } else {
+//       parent_node = model_->other_node();
+//       LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork use other";
+//     }
+//   }
 
-  PauseObserver();
+//   PauseObserver();
 
-  // std::unique_ptr<BookmarkNode> new_node =
-  //     std::make_unique<BookmarkNode>(generate_next_node_id(), url);
-  // new_node->SetTitle(title);
-  // new_node->set_date_added(creation_time);
-  // new_node->set_type(BookmarkNode::URL);
-  // cannot use, ^-- are private
+//   // std::unique_ptr<BookmarkNode> new_node =
+//   //     std::make_unique<BookmarkNode>(generate_next_node_id(), url);
+//   // new_node->SetTitle(title);
+//   // new_node->set_date_added(creation_time);
+//   // new_node->set_type(BookmarkNode::URL);
+//   // cannot use, ^-- are private
 
-  base::string16 title16 = base::UTF8ToUTF16(sync_bookmark.site.title);
-  const bookmarks::BookmarkNode* added_node;
-  if (sync_bookmark.isFolder) {
-    added_node = model_->AddFolder(
-      parent_node,
-      parent_node->child_count(),//int index,
-      title16);
-  } else {
-    added_node = model_->AddURLWithCreationTimeAndMetaInfo(
-        parent_node,
-        parent_node->child_count(),//int index,
-        title16,
-        GURL(sync_bookmark.site.location),
-        sync_bookmark.site.creationTime, //const base::Time& creation_time,
-        nullptr//const BookmarkNode::MetaInfoMap* meta_info
-      );
-  }
-  LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork added_node="<<added_node;
-  LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork added_node->id()="<<added_node->id();
+//   base::string16 title16 = base::UTF8ToUTF16(sync_bookmark.site.title);
+//   const bookmarks::BookmarkNode* added_node;
+//   if (sync_bookmark.isFolder) {
+//     added_node = model_->AddFolder(
+//       parent_node,
+//       parent_node->child_count(),//int index,
+//       title16);
+//   } else {
+//     added_node = model_->AddURLWithCreationTimeAndMetaInfo(
+//         parent_node,
+//         parent_node->child_count(),//int index,
+//         title16,
+//         GURL(sync_bookmark.site.location),
+//         sync_bookmark.site.creationTime, //const base::Time& creation_time,
+//         nullptr//const BookmarkNode::MetaInfoMap* meta_info
+//       );
+//   }
+//   LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork added_node="<<added_node;
+//   LOG(ERROR) << "TAGAB brave_sync::Bookmarks::AddBookmarkUiWork added_node->id()="<<added_node->id();
 
 
-  // TODO, AB: apply these:
-  //          sync_bookmark.site.customTitle
-  //          sync_bookmark.site.lastAccessedTime
-  //          sync_bookmark.site.favicon
-  //          sync_bookmark.isFolder
-  //          sync_bookmark.parentFolderObjectId
-  //          sync_bookmark.hideInToolbar
-  //          sync_bookmark.order => `int index`
+//   // TODO, AB: apply these:
+//   //          sync_bookmark.site.customTitle
+//   //          sync_bookmark.site.lastAccessedTime
+//   //          sync_bookmark.site.favicon
+//   //          sync_bookmark.isFolder
+//   //          sync_bookmark.parentFolderObjectId
+//   //          sync_bookmark.hideInToolbar
+//   //          sync_bookmark.order => `int index`
 
-  //  What is const BookmarkNode::MetaInfoMap* meta_info ?
-  //      just a map string=>string to store some data
-  //      examples:
-  //        "last_visited_desktop" => "13177516524293958"
-  //        const char kBookmarkLastVisitDateOnMobileKey[] = "last_visited";
-  //        const char kBookmarkLastVisitDateOnDesktopKey[] = "last_visited_desktop";
-  //        const char kBookmarkDismissedFromNTP[] = "dismissed_from_ntp";
+//   //  What is const BookmarkNode::MetaInfoMap* meta_info ?
+//   //      just a map string=>string to store some data
+//   //      examples:
+//   //        "last_visited_desktop" => "13177516524293958"
+//   //        const char kBookmarkLastVisitDateOnMobileKey[] = "last_visited";
+//   //        const char kBookmarkLastVisitDateOnDesktopKey[] = "last_visited_desktop";
+//   //        const char kBookmarkDismissedFromNTP[] = "dismissed_from_ntp";
 
-  // There are no UpdateBookmark
-  // I cannot update bookmark neither with bookmark_utils.h nor with bookmark_model
+//   // There are no UpdateBookmark
+//   // I cannot update bookmark neither with bookmark_utils.h nor with bookmark_model
 
-  // How to update custom title?
-  // It happens in  BookmarkModel::SetTitle:
-  // if (node->is_url())
-  //   index_->Remove(node);
-  // AsMutable(node)->SetTitle(title);
-  // if (node->is_url())
-  //   index_->Add(node);
-  // store_->ScheduleSave();
-  // all these are private
-  // No matter we want ChromiumSync and Brave backend.
+//   // How to update custom title?
+//   // It happens in  BookmarkModel::SetTitle:
+//   // if (node->is_url())
+//   //   index_->Remove(node);
+//   // AsMutable(node)->SetTitle(title);
+//   // if (node->is_url())
+//   //   index_->Add(node);
+//   // store_->ScheduleSave();
+//   // all these are private
+//   // No matter we want ChromiumSync and Brave backend.
 
-  DCHECK(!sync_bookmark.order.empty()); // What if I recieve empty order from old browser-laptop, maybe we should generate it?
+//   DCHECK(!sync_bookmark.order.empty()); // What if I recieve empty order from old browser-laptop, maybe we should generate it?
 
-  ResumeObserver();
+//   ResumeObserver();
 
-  *parent_folder_id = parent_node->id();
-  *added_node_id = added_node->id();
-  model_->EndExtensiveChanges();
-}
+//   *parent_folder_id = parent_node->id();
+//   *added_node_id = added_node->id();
+//   model_->EndExtensiveChanges();
+// }
 
 void Bookmarks::AddOrUpdateBookmarkPostUiFileWork(
     const int64_t& folder_id,
@@ -389,85 +389,85 @@ void Bookmarks::ReorderFolderUiWorkCollectChildren(const int64_t &folder_id) {
 void Bookmarks::ReorderFolderFileWorkCalculateSortedIndexes(
   const int64_t &folder_id,
   const std::vector<int64_t> &children_local_ids) {
-  LOG(ERROR) << "TAGAB ReorderFolderFileWorkCalculateSortedIndexes";
-  LOG(ERROR) << "TAGAB folder_id=" << folder_id;
-  LOG(ERROR) << "TAGAB children_local_ids.size()=" << children_local_ids.size();
+//   LOG(ERROR) << "TAGAB ReorderFolderFileWorkCalculateSortedIndexes";
+//   LOG(ERROR) << "TAGAB folder_id=" << folder_id;
+//   LOG(ERROR) << "TAGAB children_local_ids.size()=" << children_local_ids.size();
 
-  if (children_local_ids.empty()) {
-    return;
-  }
+//   if (children_local_ids.empty()) {
+//     return;
+//   }
 
-  std::vector<std::tuple<int64_t, std::string>> id_and_order_list;
+//   std::vector<std::tuple<int64_t, std::string>> id_and_order_list;
 
-  for (size_t i = 0; i < children_local_ids.size(); ++i) {
-    int64_t current_local_id = children_local_ids.at(i);
-    std::string current_order = sync_obj_map_->GetOrderByLocalObjectId(storage::ObjectMap::Bookmark, std::to_string(current_local_id));
-    id_and_order_list.push_back(std::make_tuple(current_local_id, current_order));
-  }
+//   for (size_t i = 0; i < children_local_ids.size(); ++i) {
+//     int64_t current_local_id = children_local_ids.at(i);
+//     std::string current_order = sync_obj_map_->GetOrderByLocalObjectId(storage::ObjectMap::Bookmark, std::to_string(current_local_id));
+//     id_and_order_list.push_back(std::make_tuple(current_local_id, current_order));
+//   }
 
-  LOG(ERROR) << "TAGAB raw ids";
-  for (size_t i = 0; i < id_and_order_list.size(); ++i) {
-    LOG(ERROR) << "TAGAB id=" << std::get<0>(id_and_order_list.at(i));
-    LOG(ERROR) << "TAGAB order=" << std::get<1>(id_and_order_list.at(i));
-  }
+//   LOG(ERROR) << "TAGAB raw ids";
+//   for (size_t i = 0; i < id_and_order_list.size(); ++i) {
+//     LOG(ERROR) << "TAGAB id=" << std::get<0>(id_and_order_list.at(i));
+//     LOG(ERROR) << "TAGAB order=" << std::get<1>(id_and_order_list.at(i));
+//   }
 
-  std::sort(id_and_order_list.begin(), id_and_order_list.end(),
-    [](std::tuple<int64_t, std::string> &left, std::tuple<int64_t, std::string> &right) {
-      return CompareOrder(std::get<1>(left), std::get<1>(right));
-    }
-  );
+//   std::sort(id_and_order_list.begin(), id_and_order_list.end(),
+//     [](std::tuple<int64_t, std::string> &left, std::tuple<int64_t, std::string> &right) {
+//       return CompareOrder(std::get<1>(left), std::get<1>(right));
+//     }
+//   );
 
-  LOG(ERROR) << "TAGAB sorted ids";
-  for (size_t i = 0; i < id_and_order_list.size(); ++i) {
-    LOG(ERROR) << "TAGAB id=" << std::get<0>(id_and_order_list.at(i));
-    LOG(ERROR) << "TAGAB order=" << std::get<1>(id_and_order_list.at(i));
-  }
+//   LOG(ERROR) << "TAGAB sorted ids";
+//   for (size_t i = 0; i < id_and_order_list.size(); ++i) {
+//     LOG(ERROR) << "TAGAB id=" << std::get<0>(id_and_order_list.at(i));
+//     LOG(ERROR) << "TAGAB order=" << std::get<1>(id_and_order_list.at(i));
+//   }
 
-  std::vector<int64_t> sorted_children;
-  for (size_t i = 0; i < id_and_order_list.size(); ++i) {
-    sorted_children.push_back(std::get<0>(id_and_order_list.at(i)));
-  }
+//   std::vector<int64_t> sorted_children;
+//   for (size_t i = 0; i < id_and_order_list.size(); ++i) {
+//     sorted_children.push_back(std::get<0>(id_and_order_list.at(i)));
+//   }
 
-  ReorderFolderUiWorkApplyIndexes(folder_id, std::move(sorted_children));
-}
+//   ReorderFolderUiWorkApplyIndexes(folder_id, std::move(sorted_children));
+// }
 
-void Bookmarks::ReorderFolderUiWorkApplyIndexes(const int64_t &folder_id, const std::vector<int64_t> &sorted_children) {
-  LOG(ERROR) << "TAGAB ReorderFolderUiWorkApplyIndexes";
-  LOG(ERROR) << "TAGAB folder_id=" << folder_id;
-  LOG(ERROR) << "TAGAB sorted_children.size()=" << sorted_children.size();
+// void Bookmarks::ReorderFolderUiWorkApplyIndexes(const int64_t &folder_id, const std::vector<int64_t> &sorted_children) {
+//   LOG(ERROR) << "TAGAB ReorderFolderUiWorkApplyIndexes";
+//   LOG(ERROR) << "TAGAB folder_id=" << folder_id;
+//   LOG(ERROR) << "TAGAB sorted_children.size()=" << sorted_children.size();
 
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+//   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  const bookmarks::BookmarkNode* parent = bookmarks::GetBookmarkNodeByID(model_, folder_id);
-  if (!parent) {
-    return;
-  }
+//   const bookmarks::BookmarkNode* parent = bookmarks::GetBookmarkNodeByID(model_, folder_id);
+//   if (!parent) {
+//     return;
+//   }
 
-  std::vector<const bookmarks::BookmarkNode*> ordered_nodes;
-  for (size_t i = 0; i < sorted_children.size(); ++i) {
-    const bookmarks::BookmarkNode* child = bookmarks::GetBookmarkNodeByID(model_, sorted_children.at(i));
-    if (child) {
-      ordered_nodes.push_back(child);
-    }
-  }
+//   std::vector<const bookmarks::BookmarkNode*> ordered_nodes;
+//   for (size_t i = 0; i < sorted_children.size(); ++i) {
+//     const bookmarks::BookmarkNode* child = bookmarks::GetBookmarkNodeByID(model_, sorted_children.at(i));
+//     if (child) {
+//       ordered_nodes.push_back(child);
+//     }
+//   }
 
-  // ? need in the same UI
-  if ((int)sorted_children.size() != parent->child_count()) {
-    LOG(ERROR) << "TAGAB ReorderFolderUiWorkApplyIndexes could not apply sorting";
-    LOG(ERROR) << "TAGAB sorted_children.size()=" << sorted_children.size();
-    LOG(ERROR) << "TAGAB parent->child_count()=" << parent->child_count();
-    for (int i = 0; i < parent->child_count(); ++i) {
-      const bookmarks::BookmarkNode* current_child = parent->GetChild(i);
-      LOG(ERROR) << "TAGAB   id="<< current_child->id();
-      LOG(ERROR) << "TAGAB   title="<< current_child->GetTitledUrlNodeTitle();
-    }
-    DCHECK(false);
-    return;
-  }
+//   // ? need in the same UI
+//   if ((int)sorted_children.size() != parent->child_count()) {
+//     LOG(ERROR) << "TAGAB ReorderFolderUiWorkApplyIndexes could not apply sorting";
+//     LOG(ERROR) << "TAGAB sorted_children.size()=" << sorted_children.size();
+//     LOG(ERROR) << "TAGAB parent->child_count()=" << parent->child_count();
+//     for (int i = 0; i < parent->child_count(); ++i) {
+//       const bookmarks::BookmarkNode* current_child = parent->GetChild(i);
+//       LOG(ERROR) << "TAGAB   id="<< current_child->id();
+//       LOG(ERROR) << "TAGAB   title="<< current_child->GetTitledUrlNodeTitle();
+//     }
+//     DCHECK(false);
+//     return;
+//   }
 
-  PauseObserver();
-  model_->ReorderChildren(parent, ordered_nodes);
-  ResumeObserver();
+//   PauseObserver();
+//   model_->ReorderChildren(parent, ordered_nodes);
+//   ResumeObserver();
 }
 
 void Bookmarks::DeleteBookmark(const jslib::SyncRecord &sync_record) {
@@ -481,22 +481,22 @@ void Bookmarks::DeleteBookmark(const jslib::SyncRecord &sync_record) {
     return;
   }
 
-  std::string s_local_object_id = sync_obj_map_->GetLocalIdByObjectId(storage::ObjectMap::Type::Bookmark,
-    sync_record.objectId);
-  DCHECK(!s_local_object_id.empty());
-  if (s_local_object_id.empty()) {
-    LOG(ERROR) << "TAGAB brave_sync::Bookmarks::DeleteBookmark: could not find local id";
-    return;
-  }
+  // std::string s_local_object_id = sync_obj_map_->GetLocalIdByObjectId(storage::ObjectMap::Type::Bookmark,
+  //   sync_record.objectId);
+  // DCHECK(!s_local_object_id.empty());
+  // if (s_local_object_id.empty()) {
+  //   LOG(ERROR) << "TAGAB brave_sync::Bookmarks::DeleteBookmark: could not find local id";
+  //   return;
+  // }
 
-  int64_t local_object_id = -1;
-  if (!base::StringToInt64(s_local_object_id, &local_object_id) || local_object_id == -1) {
-    LOG(ERROR) << "TAGAB brave_sync::Bookmarks::DeleteBookmark: could not convert local id";
-    return;
-  }
+  // int64_t local_object_id = -1;
+  // if (!base::StringToInt64(s_local_object_id, &local_object_id) || local_object_id == -1) {
+  //   LOG(ERROR) << "TAGAB brave_sync::Bookmarks::DeleteBookmark: could not convert local id";
+  //   return;
+  // }
 
   // Jump to UI thread and then back to file thread
-  DeleteBookmarkUiWork(local_object_id, s_local_object_id);
+  // DeleteBookmarkUiWork(local_object_id, s_local_object_id);
 }
 
 void Bookmarks::DeleteBookmarkUiWork(const int64_t &local_object_id,
@@ -687,12 +687,12 @@ int Bookmarks::CalculateNewIndex(
 
   // Get the orders from map, FILE thread
   std::vector<std::string> new_parent_children_orders;
-  for (size_t i = 0; i < new_parent_children_ids.size(); ++i) {
-    std::string current_child_node = sync_obj_map_->GetOrderByLocalObjectId(
-      storage::ObjectMap::Bookmark, std::to_string(new_parent_children_ids.at(i)));
-    DCHECK(!current_child_node.empty());
-    new_parent_children_orders.push_back(current_child_node);
-  }
+  // for (size_t i = 0; i < new_parent_children_ids.size(); ++i) {
+  //   std::string current_child_node = sync_obj_map_->GetOrderByLocalObjectId(
+  //     storage::ObjectMap::Bookmark, std::to_string(new_parent_children_ids.at(i)));
+  //   DCHECK(!current_child_node.empty());
+  //   new_parent_children_orders.push_back(current_child_node);
+  // }
 
   // Check orders are sorted by orders sorting rules
   bool is_ordered = IsOrdered(new_parent_children_orders);
@@ -822,8 +822,8 @@ std::unique_ptr<RecordsList> Bookmarks::NativeBookmarksToSyncRecords(
           // Could not find the order for parent node
         }
       } else {
-        parent_folder_object_sync_id = sync_obj_map_->GetObjectIdByLocalId(
-          storage::ObjectMap::Type::Bookmark, std::to_string(parent_folder_id));
+        // parent_folder_object_sync_id = sync_obj_map_->GetObjectIdByLocalId(
+        //   storage::ObjectMap::Type::Bookmark, std::to_string(parent_folder_id));
       }
     }
 
@@ -832,7 +832,7 @@ std::unique_ptr<RecordsList> Bookmarks::NativeBookmarksToSyncRecords(
       node_order = order_map.at(node);
       DCHECK(!node_order.empty());
     } else {
-      node_order = sync_obj_map_->GetOrderByLocalObjectId(storage::ObjectMap::Type::Bookmark, std::to_string(node->id()));
+      // node_order = sync_obj_map_->GetOrderByLocalObjectId(storage::ObjectMap::Type::Bookmark, std::to_string(node->id()));
     }
     DCHECK(!node_order.empty());
     std::string object_id = GetOrCreateObjectByLocalId(node->id(), node_order);
@@ -881,13 +881,13 @@ std::unique_ptr<RecordsList> Bookmarks::GetSyncRecordsByLocalIds(
   for (const int64_t &local_id: local_ids) {
     std::unique_ptr<jslib::SyncRecord> record = std::make_unique<jslib::SyncRecord>();
 
-    const std::string object_id = sync_obj_map_->GetObjectIdByLocalId(
-      storage::ObjectMap::Type::Bookmark, std::to_string(local_id));
+    // const std::string object_id = sync_obj_map_->GetObjectIdByLocalId(
+    //   storage::ObjectMap::Type::Bookmark, std::to_string(local_id));
 
-    DCHECK(!object_id.empty());
-    if (object_id.empty()) {
-      continue;
-    }
+    // DCHECK(!object_id.empty());
+    // if (object_id.empty()) {
+    //   continue;
+    // }
 
     record->action = ConvertEnum<brave_sync::jslib::SyncRecord::Action>(action,
         brave_sync::jslib::SyncRecord::Action::A_MIN,
@@ -895,25 +895,25 @@ std::unique_ptr<RecordsList> Bookmarks::GetSyncRecordsByLocalIds(
         brave_sync::jslib::SyncRecord::Action::A_INVALID);
 
     record->deviceId = device_id_;
-    record->objectId = object_id;
+    // record->objectId = object_id;
     record->objectData = "bookmark";
 
     std::unique_ptr<jslib::Bookmark> bookmark = std::make_unique<jslib::Bookmark>();
     const bookmarks::BookmarkNode* node = bookmarks::GetBookmarkNodeByID(model_, local_id);
     if (node) {
-      std::string node_order = sync_obj_map_->GetOrderByLocalObjectId(
-        storage::ObjectMap::Type::Bookmark, std::to_string(local_id));
-      DCHECK(!node_order.empty());
+      // std::string node_order = sync_obj_map_->GetOrderByLocalObjectId(
+      //   storage::ObjectMap::Type::Bookmark, std::to_string(local_id));
+      // DCHECK(!node_order.empty());
 
-      std::string parent_folder_object_sync_id;
-      if (node->parent()) {
-        parent_folder_object_sync_id = sync_obj_map_->GetObjectIdByLocalId(
-          storage::ObjectMap::Type::Bookmark, std::to_string(node->parent()->id()));
-      }
+      // std::string parent_folder_object_sync_id;
+      // if (node->parent()) {
+      //   parent_folder_object_sync_id = sync_obj_map_->GetObjectIdByLocalId(
+      //     storage::ObjectMap::Type::Bookmark, std::to_string(node->parent()->id()));
+      // }
 
-      FillSyncBookmarkFromNode(bookmark.get(), node);
-      bookmark->parentFolderObjectId = parent_folder_object_sync_id;
-      bookmark->order = node_order;
+      // FillSyncBookmarkFromNode(bookmark.get(), node);
+      // bookmark->parentFolderObjectId = parent_folder_object_sync_id;
+      // bookmark->order = node_order;
     } else {
       // For resending not-synced delete it is enough to send action and object id
     }
@@ -979,11 +979,11 @@ void Bookmarks::BookmarkNodeMoved(bookmarks::BookmarkModel* model,
   }
 
   // Next: ask lib, jump into task runner to get orders with file ops
-  BookmarkMoved(
-    node->id(),
-    prev_item_id,
-    next_item_id,
-    new_parent->id());
+  // BookmarkMoved(
+  //   node->id(),
+  //   prev_item_id,
+  //   next_item_id,
+  //   new_parent->id());
 }
 
 void Bookmarks::BookmarkNodeAdded(bookmarks::BookmarkModel* model,
@@ -1038,11 +1038,11 @@ void Bookmarks::BookmarkNodeAdded(bookmarks::BookmarkModel* model,
   }
 
   // Next: ask lib, jump into task runner to get orders with file ops
-  BookmarkAdded(
-    node->id(),
-    prev_item_id,
-    next_item_id,
-    parent->id());
+  // BookmarkAdded(
+  //   node->id(),
+  //   prev_item_id,
+  //   next_item_id,
+  //   parent->id());
 }
 
 void Bookmarks::BookmarkNodeRemoved(

@@ -38,6 +38,7 @@ class SyncDevices {
 public:
    SyncDevices();
    ~SyncDevices();
+   SyncDevices(const SyncDevices& devices) = delete;
    std::vector<SyncDevice> devices_;
    std::unique_ptr<base::Value> ToValue() const;
    std::unique_ptr<base::Value> ToValueArrOnly() const;

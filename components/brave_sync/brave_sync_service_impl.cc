@@ -608,12 +608,8 @@ void BraveSyncServiceImpl::OnResolvedSyncRecordsImpl(
     const std::string &category_name,
     std::unique_ptr<RecordsList> records,
     const std::string json) {
-  SyncDevices existing_sync_devices;
-  existing_sync_devices.FromJson(json);
-  DCHECK(existing_sync_devices.devices_.size() > 0);
-
   if (category_name == brave_sync::jslib_const::kPreferences) {
-    OnResolvedPreferences(*records.get(), existing_sync_devices);
+    OnResolvedPreferences(*records.get(), json);
   } else if (category_name == brave_sync::jslib_const::kBookmarks) {
     OnResolvedBookmarks(*records.get());
   } else if (category_name == brave_sync::jslib_const::kHistorySites) {
@@ -625,8 +621,12 @@ void BraveSyncServiceImpl::OnResolvedSyncRecordsImpl(
 }
 
 void BraveSyncServiceImpl::OnResolvedPreferences(const RecordsList &records,
-                                            SyncDevices existing_sync_devices) {
+                                                 const std::string& json) {
   LOG(ERROR) << "TAGAB brave_sync::BraveSyncServiceImpl::OnResolvedPreferences:";
+
+  SyncDevices existing_sync_devices;
+  existing_sync_devices.FromJson(json);
+  DCHECK(existing_sync_devices.devices_.size() > 0);
 
   //then merge to existing
 
@@ -664,12 +664,12 @@ void BraveSyncServiceImpl::OnResolvedBookmarks(const RecordsList &records) {
     VLOG(1) << "TAGAB brave_sync::BraveSyncServiceImpl::OnResolvedBookmarks: sync_record->objectId=<" << sync_record->objectId << ">";
     VLOG(1) << "TAGAB brave_sync::BraveSyncServiceImpl::OnResolvedBookmarks: order=<" << sync_record->GetBookmark().order << ">";
     DCHECK(!sync_record->objectId.empty());
-    sync_obj_map_->GetLocalIdByObjectId(
-        storage::ObjectMap::Type::Bookmark,
-        sync_record->objectId,
-        base::Bind(&BraveSyncServiceImpl::OnResolvedBookmarksInternal,
-            weak_ptr_factory_.GetWeakPtr(),
-            std::move(sync_record)));
+    // sync_obj_map_->GetLocalIdByObjectId(
+    //     storage::ObjectMap::Type::Bookmark,
+    //     sync_record->objectId,
+    //     base::Bind(&BraveSyncServiceImpl::OnResolvedBookmarksInternal,
+    //         weak_ptr_factory_.GetWeakPtr(),
+    //         std::move(sync_record)));
   }
 }
 
@@ -677,19 +677,19 @@ void BraveSyncServiceImpl::OnResolvedBookmarksInternal(
     SyncRecordPtr sync_record,
     const std::string local_id) {
   VLOG(1) << "TAGAB brave_sync::BraveSyncServiceImpl::OnResolvedBookmarks: local_id=<" << local_id << ">";
-  if (sync_record.action == jslib::SyncRecord::Action::CREATE && local_id.empty()) {
-    bookmarks_->AddBookmark(sync_record);
-  } else if (sync_record.action == jslib::SyncRecord::Action::DELETE && !local_id.empty()) {
-    bookmarks_->DeleteBookmark(sync_record);
-  } else if (sync_record.action == jslib::SyncRecord::Action::UPDATE && !local_id.empty()) {
-    bookmarks_->UpdateBookmark(sync_record);
+  if (sync_record->action == jslib::SyncRecord::Action::CREATE && local_id.empty()) {
+    bookmarks_->AddBookmark(*sync_record);
+  } else if (sync_record->action == jslib::SyncRecord::Action::DELETE && !local_id.empty()) {
+    bookmarks_->DeleteBookmark(*sync_record);
+  } else if (sync_record->action == jslib::SyncRecord::Action::UPDATE && !local_id.empty()) {
+    bookmarks_->UpdateBookmark(*sync_record);
   }
   // Abnormal cases
-  if (sync_record.action == jslib::SyncRecord::Action::DELETE && local_id.empty()) {
+  if (sync_record->action == jslib::SyncRecord::Action::DELETE && local_id.empty()) {
     LOG(WARNING) << "received request to delete bookmark which we don't have, ignoring";
-  } else if (sync_record.action == jslib::SyncRecord::Action::CREATE && !local_id.empty()) {
+  } else if (sync_record->action == jslib::SyncRecord::Action::CREATE && !local_id.empty()) {
     LOG(WARNING) << "received request to create bookmark which already exists, ignoring";
-  } else if (sync_record.action == jslib::SyncRecord::Action::UPDATE && local_id.empty()) {
+  } else if (sync_record->action == jslib::SyncRecord::Action::UPDATE && local_id.empty()) {
     LOG(WARNING) << "received request to update bookmark which we don't have, ignoring";
   }
 }

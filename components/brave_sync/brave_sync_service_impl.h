@@ -109,7 +109,7 @@ private:
   void OnBytesFromSyncWordsPrepared(const Uint8Array &bytes, const std::string &error_message) override;
 
   void OnResolvedPreferences(const RecordsList &records,
-                             SyncDevices existing_sync_devices);
+                             const std::string& json);
   void OnResolvedBookmarks(const RecordsList &records);
   void OnResolvedBookmarksInternal(SyncRecordPtr sync_record,
                                    const std::string local_id);
