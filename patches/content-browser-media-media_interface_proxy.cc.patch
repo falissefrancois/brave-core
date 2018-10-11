@@ -1,5 +1,5 @@
 diff --git a/content/browser/media/media_interface_proxy.cc b/content/browser/media/media_interface_proxy.cc
-index 82b0c8c61ac4fc623056c96e62a002c1a8c79067..aa34e99f5c9c696aca519261e23d267dfcd5116a 100644
+index 82b0c8c61ac4fc623056c96e62a002c1a8c79067..22eba1f28957b9d6721fded499faeaef0245b35c 100644
 --- a/content/browser/media/media_interface_proxy.cc
 +++ b/content/browser/media/media_interface_proxy.cc
 @@ -50,6 +50,9 @@
@@ -7,7 +7,7 @@ index 82b0c8c61ac4fc623056c96e62a002c1a8c79067..aa34e99f5c9c696aca519261e23d267d
  #endif
  
 +// BSC- fix me
-+// #include "content/utility/utility_service_factory.h"
++#include "content/utility/utility_service_factory.h"
 +
  namespace content {
  
@@ -18,19 +18,19 @@ index 82b0c8c61ac4fc623056c96e62a002c1a8c79067..aa34e99f5c9c696aca519261e23d267d
                                       cdm_guid);
 -
 +//BSC: ...in progress...
-+// #if defined(OS_WIN)
-+//   UtilityServiceFactory factory;
-+//   ServiceMap services;
-+//   factory.RegisterServices(&services);
-+//   // TODO: register with service map for this thread?
-+// #else
++#if defined(OS_WIN) && (defined(CHROME_MULTIPLE_DLL_BROWSER) || defined(CHROME_MULTIPLE_DLL_CHILD))
++  UtilityServiceFactory factory;
++  ServiceMap services;
++  factory.RegisterServices(&services);
++  // TODO: register with service map for this thread?
++#else
    // TODO(slan): Use the BrowserContext Connector instead. See crbug.com/638950.
    service_manager::Connector* connector =
        ServiceManagerConnection::GetForProcess()->GetConnector();
  
    media::mojom::CdmServicePtr cdm_service;
    connector->BindInterface(identity, &cdm_service);
-+// #endif
++#endif
  
  #if defined(OS_MACOSX)
    // LoadCdm() should always be called before CreateInterfaceFactory().
