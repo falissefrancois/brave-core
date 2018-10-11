@@ -1,0 +1,12 @@
+diff --git a/content/app/content_main_runner_impl.cc b/content/app/content_main_runner_impl.cc
+index 61ef09f69587d68109db397aca17b2a0f89a8af6..3b660a34658216d80149c11310bc97a0f7fb24ce 100644
+--- a/content/app/content_main_runner_impl.cc
++++ b/content/app/content_main_runner_impl.cc
+@@ -501,6 +501,7 @@ int RunZygote(ContentMainDelegate* delegate) {
+ 
+ static void RegisterMainThreadFactories() {
+ #if !defined(CHROME_MULTIPLE_DLL_BROWSER) && !defined(CHROME_MULTIPLE_DLL_CHILD)
++  // BSC: something like this needs to happen on Windows also
+   UtilityProcessHost::RegisterUtilityMainThreadFactory(
+       CreateInProcessUtilityThread);
+   RenderProcessHostImpl::RegisterRendererMainThreadFactory(

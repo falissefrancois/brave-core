@@ -1,0 +1,36 @@
+diff --git a/content/browser/media/media_interface_proxy.cc b/content/browser/media/media_interface_proxy.cc
+index 82b0c8c61ac4fc623056c96e62a002c1a8c79067..aa34e99f5c9c696aca519261e23d267dfcd5116a 100644
+--- a/content/browser/media/media_interface_proxy.cc
++++ b/content/browser/media/media_interface_proxy.cc
+@@ -50,6 +50,9 @@
+ #include "media/mojo/services/mojo_renderer_service.h"  // nogncheck
+ #endif
+ 
++// BSC- fix me
++// #include "content/utility/utility_service_factory.h"
++
+ namespace content {
+ 
+ #if BUILDFLAG(ENABLE_LIBRARY_CDMS) && defined(OS_MACOSX)
+@@ -337,13 +340,20 @@ media::mojom::CdmFactory* MediaInterfaceProxy::ConnectToCdmService(
+   service_manager::Identity identity(media::mojom::kCdmServiceName,
+                                      service_manager::mojom::kInheritUserID,
+                                      cdm_guid);
+-
++//BSC: ...in progress...
++// #if defined(OS_WIN)
++//   UtilityServiceFactory factory;
++//   ServiceMap services;
++//   factory.RegisterServices(&services);
++//   // TODO: register with service map for this thread?
++// #else
+   // TODO(slan): Use the BrowserContext Connector instead. See crbug.com/638950.
+   service_manager::Connector* connector =
+       ServiceManagerConnection::GetForProcess()->GetConnector();
+ 
+   media::mojom::CdmServicePtr cdm_service;
+   connector->BindInterface(identity, &cdm_service);
++// #endif
+ 
+ #if defined(OS_MACOSX)
+   // LoadCdm() should always be called before CreateInterfaceFactory().

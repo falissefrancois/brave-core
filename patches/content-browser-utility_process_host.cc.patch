@@ -1,0 +1,13 @@
+diff --git a/content/browser/utility_process_host.cc b/content/browser/utility_process_host.cc
+index 280d9dee0e53b728fd6bb0e004768e362068d0ae..290015af570bbdefb5ab1a21a94c79eb62283adc 100644
+--- a/content/browser/utility_process_host.cc
++++ b/content/browser/utility_process_host.cc
+@@ -267,6 +267,8 @@ bool UtilityProcessHost::StartProcess() {
+         std::make_unique<base::CommandLine>(exe_path);
+ #endif
+ 
++    LOG(ERROR) << "BSC]] UtilityProcessHost::" << __func__ << ": appending kUtilityProcess";
++
+     cmd_line->AppendSwitchASCII(switches::kProcessType,
+                                 switches::kUtilityProcess);
+     BrowserChildProcessHostImpl::CopyFeatureAndFieldTrialFlags(cmd_line.get());

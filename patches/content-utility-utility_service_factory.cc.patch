@@ -1,0 +1,46 @@
+diff --git a/content/utility/utility_service_factory.cc b/content/utility/utility_service_factory.cc
+index aa667ddec9d4c440ab334340da05b736fda0a2e2..fdf93b778353f3a5ca0cc18601133236d3a45d80 100644
+--- a/content/utility/utility_service_factory.cc
++++ b/content/utility/utility_service_factory.cc
+@@ -75,10 +75,15 @@ std::unique_ptr<media::CdmAuxiliaryHelper> CreateCdmHelper(
+ 
+ class ContentCdmServiceClient final : public media::CdmService::Client {
+  public:
+-  ContentCdmServiceClient() {}
+-  ~ContentCdmServiceClient() override {}
++  ContentCdmServiceClient() {
++    LOG(ERROR) << "BSC]] ContentCdmServiceClient::" << __func__;
++  }
++  ~ContentCdmServiceClient() override {
++    LOG(ERROR) << "BSC]] ContentCdmServiceClient::" << __func__;
++  }
+ 
+   void EnsureSandboxed() override {
++    LOG(ERROR) << "BSC]] ContentCdmServiceClient::" << __func__;
+ #if defined(OS_WIN)
+     // |g_utility_target_services| can be null if --no-sandbox is specified.
+     if (g_utility_target_services)
+@@ -88,6 +93,7 @@ class ContentCdmServiceClient final : public media::CdmService::Client {
+ 
+   std::unique_ptr<media::CdmFactory> CreateCdmFactory(
+       service_manager::mojom::InterfaceProvider* host_interfaces) override {
++    LOG(ERROR) << "BSC]] ContentCdmServiceClient::" << __func__;
+     return std::make_unique<media::CdmAdapterFactory>(
+         base::Bind(&CreateCdmHelper, host_interfaces));
+   }
+@@ -95,6 +101,7 @@ class ContentCdmServiceClient final : public media::CdmService::Client {
+ #if BUILDFLAG(ENABLE_CDM_HOST_VERIFICATION)
+   void AddCdmHostFilePaths(
+       std::vector<media::CdmHostFilePath>* cdm_host_file_paths) override {
++    LOG(ERROR) << "BSC]] ContentCdmServiceClient::" << __func__;
+     GetContentClient()->AddContentDecryptionModules(nullptr,
+                                                     cdm_host_file_paths);
+   }
+@@ -151,6 +158,7 @@ void UtilityServiceFactory::RegisterServices(ServiceMap* services) {
+   services->insert(std::make_pair(audio::mojom::kServiceName, audio_info));
+ 
+ #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
++  LOG(ERROR) << "BSC]] registering CreateCdmService";
+   service_manager::EmbeddedServiceInfo info;
+   info.factory = base::Bind(&CreateCdmService);
+   services->emplace(media::mojom::kCdmServiceName, info);
